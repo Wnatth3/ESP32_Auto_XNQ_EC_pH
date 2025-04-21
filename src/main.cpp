@@ -955,11 +955,14 @@ void getValues() {
     phWtempDelay = pf.getUChar("kPhWtempDelay", 0);
     phOn         = pf.getUShort("kPhOn", 0);
     phOff        = pf.getUShort("kPhOff", 0);
-    // waterTMax    = pf.getFloat("kWaterTMax", 0);
-    // waterTMin    = pf.getFloat("kWaterTMin", 0);
-    // airTMax = pf.getFloat("kAirTMax", 0);
-    // airTMin = pf.getFloat("kAirTMin", 0);
-    Serial.print("phWtemp: " + String(phWtempDelay) + "s");
+// waterTMax    = pf.getFloat("kWaterTMax", 0);
+// waterTMin    = pf.getFloat("kWaterTMin", 0);
+// airTMax = pf.getFloat("kAirTMax", 0);
+// airTMin = pf.getFloat("kAirTMin", 0);
+#ifdef _DEBUG_
+    Serial.print(F("phWtemp: "));
+    Serial.println(String(phWtempDelay) + "s");
+#endif
 }
 //----------------- Menu Loop -----------------//
 void menuLoop() {
@@ -975,7 +978,9 @@ void menuLoop() {
 //----------------- WiFi Manager --------------/
 // callback notifying us of the need to save config
 void saveConfigCallback() {
+#ifdef _DEBUG_
     Serial.println("Should save config");
+#endif
     shouldSaveConfig = true;
 }
 
@@ -984,16 +989,16 @@ void wifiManagerSetup() {
     //  SPIFFS.format();
 
     // read configuration from FS json
-    Serial.println("mounting FS...");
+    Serial.println(F("mounting FS..."));
 
     if (SPIFFS.begin()) {
-        Serial.println("mounted file system");
+        Serial.println(F("mounted file system"));
         if (SPIFFS.exists("/config.json")) {
             // file exists, reading and loading
-            Serial.println("reading config file");
+            Serial.println(F("reading config file"));
             File configFile = SPIFFS.open("/config.json", "r");
             if (configFile) {
-                Serial.println("opened config file");
+                Serial.println(F("opened config file"));
                 size_t size = configFile.size();
                 // Allocate a buffer to store contents of the file.
                 std::unique_ptr<char[]> buf(new char[size]);
@@ -1003,28 +1008,28 @@ void wifiManagerSetup() {
                 auto         deserializeError = deserializeJson(json, buf.get());
                 serializeJson(json, Serial);
                 if (!deserializeError) {
-                    Serial.println("\nparsed json");
+                    Serial.println(F("\nparsed json"));
                     strcpy(mqtt_server, json["mqtt_server"]);
                     strcpy(mqtt_port, json["mqtt_port"]);
                     strcpy(mqtt_user, json["mqtt_user"]);
                     strcpy(mqtt_pass, json["mqtt_pass"]);
                     if (json["ip"]) {
-                        Serial.println("setting custom ip from config");
+                        Serial.println(F("setting custom ip from config"));
                         strcpy(static_ip, json["ip"]);
                         strcpy(static_gw, json["gateway"]);
                         strcpy(static_sn, json["subnet"]);
                         strcpy(static_dns, json["dns"]);
                         Serial.println(static_ip);
                     } else {
-                        Serial.println("no custom ip in config");
+                        Serial.println(F("no custom ip in config"));
                     }
                 } else {
-                    Serial.println("failed to load json config");
+                    Serial.println(F("failed to load json config"));
                 }
             }
         }
     } else {
-        Serial.println("failed to mount FS");
+        Serial.println(F("failed to mount FS"));
     }
 
     WiFiManagerParameter custom_mqtt_server("server", "MQTT Server", mqtt_server, 16);
@@ -1062,10 +1067,10 @@ void wifiManagerSetup() {
     // here  "AutoConnectAP"
     // and goes into a blocking loop awaiting configuration
     if (!wifiManager.autoConnect(deviceName, "password")) {
-        Serial.println("failed to connect and hit timeout");
+        Serial.println(F("failed to connect and hit timeout"));
         // ESP.restart();
     } else {
-        Serial.println("connected...yeey :)");
+        Serial.println(F("connected...yeey :)"));
     }
 
     // read updated parameters
@@ -1073,7 +1078,7 @@ void wifiManagerSetup() {
     strcpy(mqtt_port, custom_mqtt_port.getValue());
     strcpy(mqtt_user, custom_mqtt_user.getValue());
     strcpy(mqtt_pass, custom_mqtt_pass.getValue());
-    Serial.println("The values in the file are: ");
+    Serial.println(F("The values in the file are: "));
     Serial.println("\tmqtt_server : " + String(mqtt_server));
     Serial.println("\tmqtt_port : " + String(mqtt_port));
     Serial.println("\tmqtt_user : " + String(mqtt_user));
@@ -1081,7 +1086,7 @@ void wifiManagerSetup() {
 
     // save the custom parameters to FS
     if (shouldSaveConfig) {
-        Serial.println("saving config");
+        Serial.println(F("saving config"));
         JsonDocument json;
         json["mqtt_server"] = mqtt_server;
         json["mqtt_port"]   = mqtt_port;
@@ -1095,7 +1100,7 @@ void wifiManagerSetup() {
 
         File configFile = SPIFFS.open("/config.json", "w");
         if (!configFile) {
-            Serial.println("failed to open config file for writing");
+            Serial.println(F("failed to open config file for writing"));
         }
 
         serializeJson(json, Serial);
@@ -1119,11 +1124,11 @@ void wifiResetting() {
     if (digitalRead(resetPin) == LOW) {
         delay(50);  // poor mans debounce/press-hold, code not ideal for production
         if (digitalRead(resetPin) == LOW) {
-            Serial.println("Reset Button is pressed");
+            Serial.println(F("Reset Button is pressed"));
             delay(5000);  // reset delay hold for 3 second
             if (digitalRead(resetPin) == LOW) {
                 digitalWrite(ledPin, HIGH);
-                Serial.println("Formating SPIFF and Resetting WiFi connection.");
+                Serial.println(F("Formating SPIFF and Resetting WiFi connection."));
                 SPIFFS.format();
                 wifiManager.resetSettings();
                 // delay(3000);
@@ -1137,12 +1142,12 @@ void otaWebUpdateSetup() {
     const char *host = "ESP32";
     /*use mdns for host name resolution*/
     if (!MDNS.begin(host)) {  // http://esp32.local
-        Serial.println("Error setting up MDNS responder!");
+        Serial.println(F("Error setting up MDNS responder!"));
         while (1) {
             delay(1000);
         }
     }
-    Serial.println("mDNS responder started");
+    Serial.println(F("mDNS responder started"));
     /*return index page which is stored in ud */
     server.on("/", HTTP_GET, []() {
         server.sendHeader("Connection", "close");
@@ -1171,20 +1176,22 @@ void otaWebUpdateSetup() {
       }
     } else if (upload.status == UPLOAD_FILE_END) {
       if (Update.end(true)) { //true to set the size to the current progress
-        Serial.printf("Update Success: %u\nRebooting...\n", upload.totalSize);
+        Serial.print(F("Update Success: "));
+        Serial.println(upload.totalSize);
+        Serial.println(F("Rebooting..."));
       } else {
         Update.printError(Serial);
       }
     } });
     server.begin();
-    Serial.println("\tOTA Web updater setting is done.");
+    Serial.println(F("\tOTA Web updater setting is done."));
 }
 
 //----------------- MQTT ----------------------//
 // Saves the int input and publishes it to an MQTT topic if it has changed.
 int savIntInput(int prev, const char *kPrev, String msg, const char *kVal, const char *pubTopic) {
     prev = pf.getInt(kPrev);
-    Serial.print("previousVal: ");
+    Serial.print(F("previousVal: "));
     Serial.println(prev);
 
     int crrVal = msg.toInt();
@@ -1208,13 +1215,13 @@ int savIntInput(int prev, const char *kPrev, String msg, const char *kVal, const
         // Serial.print("Previous Value: ");
         // Serial.println(prev);
     } else {
-        Serial.println("Same value");
+        Serial.println(F("Same value"));
     }
     return pf.getInt(kVal);
 }
 uint16_t savUCharInput(uint8_t prev, const char *kPrev, String msg, const char *kVal, const char *pubTopic) {
     prev = pf.getUChar(kPrev);
-    Serial.print("previousVal: ");
+    Serial.print(F("previousVal: "));
     Serial.println(prev);
 
     uint8_t crrVal = atol(msg.c_str());
@@ -1231,19 +1238,19 @@ uint16_t savUCharInput(uint8_t prev, const char *kPrev, String msg, const char *
         // Serial.println(pf.getUShort(kVal));
 
         mqtt.publish(pubTopic, String(crrVal).c_str());
-        Serial.print("Published Value: ");
+        Serial.print(F("Published Value: "));
         Serial.println(crrVal);
 
         // Serial.print("Previous Value: ");
         // Serial.println(prev);
     } else {
-        Serial.println("Same value");
+        Serial.println(F("Same value"));
     }
     return pf.getUChar(kVal);
 }
 uint16_t savUShortInput(uint16_t prev, const char *kPrev, String msg, const char *kVal, const char *pubTopic) {
     prev = pf.getUShort(kPrev);
-    Serial.print("previousVal: ");
+    Serial.print(F("previousVal: "));
     Serial.println(prev);
 
     uint16_t crrVal = atol(msg.c_str());
@@ -1260,13 +1267,13 @@ uint16_t savUShortInput(uint16_t prev, const char *kPrev, String msg, const char
         // Serial.println(pf.getUShort(kVal));
 
         mqtt.publish(pubTopic, String(crrVal).c_str());
-        Serial.print("Published Value: ");
+        Serial.print(F("Published Value: "));
         Serial.println(crrVal);
 
         // Serial.print("Previous Value: ");
         // Serial.println(prev);
     } else {
-        Serial.println("Same value");
+        Serial.println(F("Same value"));
     }
     return pf.getUShort(kVal);
 }
@@ -1274,7 +1281,7 @@ uint16_t savUShortInput(uint16_t prev, const char *kPrev, String msg, const char
 // Saves the float input and publishes it to an MQTT topic if it has changed.
 float savFloatInput(float prev, const char *kPrev, String msg, const char *kVal, const char *pubTopic) {
     prev = pf.getFloat(kPrev);
-    Serial.print("previousVal: ");
+    Serial.print(F("previousVal: "));
     Serial.println(prev);
 
     float crrVal = msg.toFloat();
@@ -1292,21 +1299,21 @@ float savFloatInput(float prev, const char *kPrev, String msg, const char *kVal,
         // Serial.println(pf.getFloat(kVal));
 
         mqtt.publish(pubTopic, String(crrVal).c_str());
-        Serial.print("Published Value: ");
+        Serial.print(F("Published Value: "));
         Serial.println(crrVal);
 
         // Serial.print("Previous Value: ");
         // Serial.println(prev);
     } else {
-        Serial.println("Same value");
+        Serial.println(F("Same value"));
     }
     return pf.getFloat(kVal);
 }
 
 void mqttCallback(char *topic, byte *message, unsigned int length) {
-    Serial.print("Message arrived on topic: ");
+    Serial.print(F("Message arrived on topic: "));
     Serial.print(topic);
-    Serial.print(". Message: ");
+    Serial.print(F(". Message: "));
     String msg;
 
     for (int i = 0; i < length; i++) {
@@ -1414,29 +1421,31 @@ void subscribeInput() {
 
 void reconnectMqtt() {
     if (WiFi.status() == WL_CONNECTED) {
-        Serial.print("Connecting MQTT... ");
+        Serial.print(F("Connecting MQTT... "));
         if (mqtt.connect(deviceName, mqtt_user, mqtt_pass)) {
             tReconnectMqtt.disable();
-            Serial.println("connected");
+            Serial.println(F("connected"));
             tConnectMqttLoop.setInterval(0);
             tConnectMqttLoop.enable();
             mqttConnectedLed.blinkNumberOfTimes(200, 200, 3);  // 250ms ON, 750ms OFF, repeat 10 times, blink immediately
             publishSetting();                                  // Once connected, publish the topics
-            Serial.println("Published setting");
+            Serial.println(F("Published setting"));
             // Publish node in node red, the retain value must be "true".
             subscribeInput();  // Once connected, subscribe to the topics
-            Serial.println("Subscribed Input");
+            Serial.println(F("Subscribed Input"));
         } else {
             Serial.println("failed state: " + String(mqtt.state()));
             if (tReconnectMqtt.getRunCounter() >= 3) {
                 // ESP.restart();
                 tReconnectMqtt.disable();
-                tConnectMqttLoop.setInterval(1 * TASK_HOUR); // Try to reconnect after 1 hour.
-                tConnectMqttLoop.enableDelayed(); 
+                tConnectMqttLoop.setInterval(1 * TASK_HOUR);  // Try to reconnect after 1 hour.
+                tConnectMqttLoop.enableDelayed();
             }
         }
     } else {
-        if (tReconnectMqtt.isFirstIteration()) Serial.println("WiFi is not connected");
+        if (tReconnectMqtt.isFirstIteration()) {
+            Serial.println(F("WiFi is not connected"));
+        }
     }
 }
 
@@ -1584,23 +1593,23 @@ void getData(Para paras) {
 //----------------- EC ------------------------//
 void IRAM_ATTR stirringPumpOn() {
     digitalWrite(stirringPumpPin, turnOn);
-    Serial.println("Stirring Pump: On");
+    Serial.println(F("Stirring Pump: On"));
 }
 void IRAM_ATTR stirringPumpOff() {
     digitalWrite(stirringPumpPin, turnOff);
-    Serial.println("Stirring Pump: Off");
+    Serial.println(F("Stirring Pump: Off"));
 }
 void IRAM_ATTR fertA_PumpOn() {
     digitalWrite(cwFertA_PumpPin, LOW);
     digitalWrite(ccwFertA_PumpPin, HIGH);
     float fertA_DutyCycle = 225 / 100.f * fertAPumpPct;
     ledcWrite(pwmChannel0, fertA_DutyCycle);
-    Serial.println("Fert A Pump: On");
+    Serial.println(F("Fert A Pump: On"));
 }
 void IRAM_ATTR fertA_PumpOff() {
     digitalWrite(cwFertA_PumpPin, LOW);
     digitalWrite(ccwFertA_PumpPin, LOW);
-    Serial.println("Fert A Pump: Off");
+    Serial.println(F("Fert A Pump: Off"));
 }
 
 void IRAM_ATTR fertB_PumpOn() {
@@ -1608,16 +1617,16 @@ void IRAM_ATTR fertB_PumpOn() {
     digitalWrite(ccwFertB_PumpPin, HIGH);
     float fertB_DutyCycle = 225 / 100.f * fertBPumpPct;
     ledcWrite(pwmChannel1, fertB_DutyCycle);
-    Serial.println("Fert B Pump: On");
+    Serial.println(F("Fert B Pump: On"));
 }
 void IRAM_ATTR fertB_PumpOff() {
     digitalWrite(cwFertB_PumpPin, LOW);
     digitalWrite(ccwFertB_PumpPin, LOW);
-    Serial.println("Fert B Pump: Off");
+    Serial.println(F("Fert B Pump: Off"));
 }
 
 void measureEcInit() {
-    Serial.println("EC measurement initialized");
+    Serial.println(F("EC measurement initialized"));
     stirringPumpOn();
     tMeasureEc.enableDelayed(3000);
 }
@@ -1644,12 +1653,12 @@ void measureEc() {
         Serial.println("\tEC Value: " + String(mEc) + " uS/cm");
         tEcState.restart();
     } else {
-        Serial.println("Stirring Pump: Unavailable");
+        Serial.println(F("Stirring Pump: Unavailable"));
     }
 }
 
 void ecState() {
-    Serial.println("EC state started");
+    Serial.println(F("EC state started"));
     tEcState.setCallback(NULL);  // Prevent repeating the tEcState
     if (mEc < ecMin) {
         tFillFertInit.restart();
@@ -1667,7 +1676,7 @@ void ecState() {
 void fillFertInit() {
     tFillFertInit.setCallback(NULL);  // Prevent repeating the tFillFertInit
     tFertA_On.restart();
-    Serial.println("Fill Fertilizer Initalized");
+    Serial.println(F("Fill Fertilizer Initalized"));
 }
 
 void fertA_On() {
@@ -1693,23 +1702,23 @@ void fertB_Off() {
 
 void fertB_OffDis() {
     tFertA_Off.setInterval(fertOn * 1000);
-    Serial.println("Set A ON intv");
+    Serial.println(F("Set A ON intv"));
     tFertA_On.setInterval(fertOff * 1000);
-    Serial.println("Set A OFF intv");
+    Serial.println(F("Set A OFF intv"));
     tFertB_Off.setInterval(fertOn * 1000);
-    Serial.println("Set B ON intv");
+    Serial.println(F("Set B ON intv"));
     tFertB_On.setInterval(fertOff * 1000);
-    Serial.println("Set B OFF intv");
-    Serial.println("FertB_OffDis is executed.");
+    Serial.println(F("Set B OFF intv"));
+    Serial.println(F("FertB_OffDis is executed."));
 
     if (mEc > ecMax) {
         tFertA_On.disable();
-        Serial.println("\tA&B Pumps: OFF");
+        Serial.println(F("\tA&B Pumps: OFF"));
         mix.disableAll();
         tEcState.setCallback(&ecState);            // Return ecState to the tEcState
         tFillFertInit.setCallback(&fillFertInit);  // Return fillFertInit to the tFillFertInit
         // tMeasurePhInit.restart();
-        Serial.println("Fertilizer filling is disabled");
+        Serial.println(F("Fertilizer filling is disabled"));
         // tDetWrapper.enableDelayed();
         onlyAdjustPh ? onlyAdjustPh = false : tDetWrapper.enableDelayed();
         isMixing = false;
@@ -1719,22 +1728,22 @@ void fertB_OffDis() {
 //----------------- pH ------------------------//
 void IRAM_ATTR phDownPumpOn() {
     digitalWrite(phDownPumpPin, turnOn);
-    Serial.println("ph Down Pump: On");
+    Serial.println(F("ph Down Pump: On"));
 }
 void IRAM_ATTR phDownPumpOff() {
     digitalWrite(phDownPumpPin, turnOff);
-    Serial.println("ph Down Pump: Off");
+    Serial.println(F("ph Down Pump: Off"));
 }
 void IRAM_ATTR phUpPumpOn() {
     digitalWrite(phUpPumpPin, turnOn);
-    Serial.println("ph Up Pump: On");
+    Serial.println(F("ph Up Pump: On"));
 }
 void IRAM_ATTR phUpPumpOff() {
     digitalWrite(phUpPumpPin, turnOff);
-    Serial.println("ph Up Pump: Off");
+    Serial.println(F("ph Up Pump: Off"));
 }
 void measurePhInit() {
-    Serial.println("pH measure Initialized");
+    Serial.println(F("pH measure Initialized"));
     tMeasurePhInit.setCallback(NULL);
     if (digitalRead(stirringPumpPin) == turnOff) stirringPumpOn();
     tMeasurePh.enableDelayed(3000);
@@ -1760,7 +1769,7 @@ void measurePh() {
         Serial.println("pH: " + String(mPh) + " / " + String(mWaterTemp) + "C");
 
     } else {
-        Serial.println("Stirring Pump: Unavailable");
+        Serial.println(F("Stirring Pump: Unavailable"));
     }
     tPhState.restart();
 }
@@ -1775,7 +1784,7 @@ void phState() {
         tPhUpPumpOn.restart();
         // Serial.println("\tphUP started");
     } else {
-        Serial.println("\tThe optimal pH range");
+        Serial.println(F("\tThe optimal pH range"));
         stirringPumpOff();
         mix.disableAll();
         tMeasurePhInit.setCallback(&measurePhInit);  // Return measurePhInit to the tMeasurePhInit
@@ -1786,7 +1795,7 @@ void phState() {
     }
 }
 void phDownPumpOnCb() {
-    Serial.println("\tphDown started");
+    Serial.println(F("\tphDown started"));
     tPhDownPumpOn.setCallback(NULL);  // Prevent repeated phDownPumpOnCb calls.
     tPhDownOn.restart();
 }
@@ -1808,7 +1817,7 @@ void phDownOffDis() {
     Serial.println("\t\tAdjusting less than " + String(avgPh));
     if (mPh < avgPh) {
         tPhDownOn.disable();
-        Serial.println("\tpH Dowm Pumps: OFF");
+        Serial.println(F("\tpH Dowm Pumps: OFF"));
         mix.disableAll();                            // Make sure the all tasks is disabled.
         tMeasurePhInit.setCallback(&measurePhInit);  // Return measurePhInit to the tMeasurePhInit
         tPhState.setCallback(&phState);              // Return phState to the tPhState
@@ -1822,7 +1831,7 @@ void phDownOffDis() {
 }
 
 void phUpPumpOnCb() {
-    Serial.println("\tphUP started");
+    Serial.println(F("\tphUP started"));
     tPhUpPumpOn.setCallback(NULL);
     tPhUpOn.restart();
 }
@@ -1843,7 +1852,7 @@ void phUpOffDis() {
     Serial.println("\t\tAdjusting more than " + String(avgPh));
     if (mPh > avgPh) {
         tPhUpOn.disable();
-        Serial.println("\tpH Up Pumps: OFF");
+        Serial.println(F("\tpH Up Pumps: OFF"));
         mix.disableAll();                            // Make sure the all tasks is disabled.
         tMeasurePhInit.setCallback(&measurePhInit);  // Return measurePhInit to the tMeasurePhInit
         tPhState.setCallback(&phState);              // Return phState to the tPhState
@@ -1858,11 +1867,11 @@ void phUpOffDis() {
 
 void IRAM_ATTR oxygenPumpOn() {
     digitalWrite(oxygenPumpPin, turnOn);
-    Serial.println("Oxygen Pump: On");
+    Serial.println(F("Oxygen Pump: On"));
 }
 void IRAM_ATTR oxygenPumpOff() {
     digitalWrite(oxygenPumpPin, turnOff);
-    Serial.println("Oxygen Pump: Off");
+    Serial.println(F("Oxygen Pump: Off"));
 }
 
 //----------------- Detection -----------------//
@@ -1915,7 +1924,7 @@ void getPhWtemp() {
 //     }
 // }
 void decideMixing() {
-    Serial.println("\nDecide Mixing");
+    Serial.println(F("\nDecide Mixing"));
     if (mEc < ecMin) {
         tDetWrapper.disable();
         mix.disableAll();
@@ -1932,7 +1941,7 @@ void decideMixing() {
 }
 
 void detWrapper() {
-    Serial.println("\nDetection Wrapper2");
+    Serial.println(F("\nDetection Wrapper2"));
     isMixing = false;
     getData(WATERLEVEL);
     mqtt.publish(pubMonitorWaterLv, String(mWaterLv).c_str());
@@ -1954,7 +1963,7 @@ void onlyAdjustPhOn() {
         if (mWaterLv < waterLvMin) {
             Serial.println("Water Level is " + String(mWaterLv) + " lower than (Min) " + String(waterLvMin));
         } else {
-            Serial.println("\n Only adjust the pH");
+            Serial.println(F("\n Only adjust the pH"));
             tMeasurePhInit.restart();
         }
     }
@@ -1975,7 +1984,7 @@ void onlyAdjustEcOn() {
         if (mWaterLv < waterLvMin) {
             Serial.println("Water Level is " + String(mWaterLv) + " lower than (Min) " + String(waterLvMin));
         } else {
-            Serial.println("\n Only adjust the EC.");
+            Serial.println(F("\n Only adjust the EC."));
             tMeasureEcInit.restart();
         }
     }
@@ -2018,9 +2027,9 @@ void sendData() {
         // mqtt.publish(pubMonitorAirTemp, String(mAirTemp).c_str());
         // mqtt.publish(pubMonitorHumi, String(mHumi).c_str());
 
-        Serial.println("\t\tData sending is done.");
+        Serial.println(F("\t\tData sending is done."));
     } else {
-        Serial.println("\t\tData sending is failed. Check MQTT connection.");
+        Serial.println(F("\t\tData sending is failed. Check MQTT connection."));
     }
 }
 
@@ -2164,7 +2173,7 @@ void deviceTestOn() {
         tEcTestMode.enable();
         tPhWtempTestMode.enable();
         tWaterLvTestMode.enable();
-        Serial.println("Test Mode: ON");
+        Serial.println(F("Test Mode: ON"));
     }
 }
 void deviceTestOff() {
@@ -2186,7 +2195,7 @@ void deviceTestOff() {
         phDownPumpOff();
         stirringPumpOff();
         oxygenPumpOff();
-        Serial.println("Test Mode: OFF");
+        Serial.println(F("Test Mode: OFF"));
     }
 }
 
